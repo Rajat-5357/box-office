@@ -64,7 +64,6 @@ const Show = () => {
     };
   }, [id]);
 
-  console.log(show);
   if (isloading) {
     return <div>Data is Loading</div>;
   }

@@ -1,4 +1,5 @@
-import { useReducer, useEffect } from 'react';
+import { useReducer, useState, useEffect } from 'react';
+import { apiGet } from './config';
 
 function showsReducer(prevState, action) {
   switch (action.type) {
@@ -30,4 +31,71 @@ function usePersistedReducer(reducer, initialState, key) {
 
 export function useShows(key = 'shows') {
   return usePersistedReducer(showsReducer, [], key);
+}
+
+export function useLastQuery(key = 'lastQuery') {
+  const [input, setInput] = useState(() => {
+    const persisted = sessionStorage.getItem(key);
+
+    return persisted ? JSON.parse(persisted) : '';
+  });
+
+  const setPersistedInput = newstate => {
+    setInput(newstate);
+    sessionStorage.setItem(key, JSON.stringify(newstate));
+  };
+
+  return [input, setPersistedInput];
+}
+
+const reducer = (prevState, action) => {
+  switch (action.type) {
+    case 'FETCH_SUCCESS': {
+      return { isloading: false, error: null, show: action.show };
+    }
+
+    case 'FETCH_FAILED': {
+      return { ...prevState, isloading: false, error: action.error };
+    }
+
+    default:
+      return prevState;
+  }
+};
+
+export function useShow(showId) {
+  const [state, dispatch] = useReducer(reducer, {
+    show: null,
+    isloading: true,
+    error: null,
+  });
+
+  // const [show, setShow] = useState(null);
+
+  // const [isloading, setIsLoading] = useState(true);
+  // const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    apiGet(`shows/${showId}?embed[]=seasons&embed[]=cast`)
+      .then(results => {
+        setTimeout(() => {
+          if (isMounted) {
+            dispatch({ type: 'FETCH_SUCCESS', show: results });
+          }
+        }, 2000);
+      })
+      .catch(err => {
+        if (isMounted) {
+          dispatch({ type: 'FETCH_FAILED', error: err.message });
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showId]);
+
+  return state;
 }
